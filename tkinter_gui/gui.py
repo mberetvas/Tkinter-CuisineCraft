@@ -114,7 +114,6 @@ class CuisineCraftModernGUI:
         )  # Manual selection
         self.tab_add_recipe = ttk.Frame(self.notebook, style="Modern.TFrame")
         self.tab_ingredients = ttk.Frame(self.notebook, style="Modern.TFrame")
-        self.tab_receipts = ttk.Frame(self.notebook, style="Modern.TFrame")
         self.tab_import_recipe = ttk.Frame(
             self.notebook, style="Modern.TFrame"
         )  # New tab frame
@@ -127,7 +126,6 @@ class CuisineCraftModernGUI:
         self.notebook.add(self.tab_manual_week_menu, text="✍️ Manual Menu")  # New tab
         self.notebook.add(self.tab_add_recipe, text="➕ Add Recipe")
         self.notebook.add(self.tab_ingredients, text="🥕 Add Ingredients")
-        self.notebook.add(self.tab_receipts, text="🧾 Receipts")
         self.notebook.add(self.tab_import_recipe, text="🔗 Import Recipe")  # New tab
 
     def setup_recipe_list_tab(self):

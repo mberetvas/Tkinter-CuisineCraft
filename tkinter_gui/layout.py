@@ -30,7 +30,6 @@ class GUILayout:
         self.recipe_listbox = None
         self.week_menu_listbox = None
         self.ingredients_tree = None
-        self.receipt_tree = None
         self.manual_menu_search_entry = None
         self.manual_menu_recipe_listbox = None
         self.manual_menu_ingredients_tree = None
@@ -44,7 +43,6 @@ class GUILayout:
         self.tab_manual_week_menu = ttk.Frame(self.notebook, style='Modern.TFrame')
         self.tab_add_recipe = ttk.Frame(self.notebook, style='Modern.TFrame')
         self.tab_ingredients = ttk.Frame(self.notebook, style='Modern.TFrame')
-        self.tab_receipts = ttk.Frame(self.notebook, style='Modern.TFrame')
         self.tab_import_recipe = ttk.Frame(self.notebook, style='Modern.TFrame')
 
     def setup_header(self):
@@ -67,7 +65,6 @@ class GUILayout:
         self.notebook.add(self.tab_manual_week_menu, text='✍️ Manual Menu')
         self.notebook.add(self.tab_add_recipe, text='➕ Add Recipe')
         self.notebook.add(self.tab_ingredients, text='🥕 Add Ingredients')
-        self.notebook.add(self.tab_receipts, text='🧾 Receipts')
         self.notebook.add(self.tab_import_recipe, text='🔗 Import Recipe')
 
     def setup_recipe_list_tab(self, on_search_change_cmd, refresh_recipe_list_cmd, search_recipes_cmd):
@@ -341,52 +338,6 @@ class GUILayout:
         clear_btn = ttk.Button(button_frame, text="🗑️ Clear Form", 
                              style='Secondary.TButton', command=clear_ingredients_form_cmd)
         clear_btn.pack(side='left')
-
-    def setup_receipts_tab(self, upload_receipt_cmd, save_receipt_items_cmd):
-        """Tab for uploading and processing receipts"""
-        self.tab_receipts.configure(padding=16)
-
-        controls_frame = ttk.Frame(self.tab_receipts, style='Card.TFrame')
-        controls_frame.pack(fill='x', pady=(0, 16))
-        controls_frame.configure(padding=12)
-
-        upload_btn = ttk.Button(controls_frame, text="📄 Upload Receipt",
-                                style='Modern.TButton', command=upload_receipt_cmd)
-        upload_btn.pack(side='left', padx=(0, 8))
-        ToolTip(upload_btn, "Upload a receipt image for processing")
-
-        save_btn = ttk.Button(controls_frame, text="💾 Save Items",
-                              style='Secondary.TButton', command=save_receipt_items_cmd)
-        save_btn.pack(side='left')
-        ToolTip(save_btn, "Save the processed items to the database")
-
-        self.processing_label = ttk.Label(controls_frame, text="", style='Card.TLabel', foreground=ModernTheme.COLORS['info'])
-        self.processing_label.pack(side='left', padx=(8, 0))
-
-        tree_frame = ttk.Frame(self.tab_receipts, style='Card.TFrame')
-        tree_frame.pack(fill='both', expand=True)
-        tree_frame.configure(padding=12)
-
-        self.receipt_tree = ttk.Treeview(tree_frame,
-                                         columns=('item_name', 'price', 'quantity', 'unit'),
-                                         show='headings',
-                                         style='Modern.Treeview')
-
-        self.receipt_tree.heading('item_name', text='Item Name')
-        self.receipt_tree.heading('price', text='Price')
-        self.receipt_tree.heading('quantity', text='Quantity')
-        self.receipt_tree.heading('unit', text='Unit')
-
-        self.receipt_tree.column('item_name', width=250)
-        self.receipt_tree.column('price', width=80)
-        self.receipt_tree.column('quantity', width=80)
-        self.receipt_tree.column('unit', width=80)
-
-        tree_scrollbar = ttk.Scrollbar(tree_frame, orient="vertical",
-                                     command=self.receipt_tree.yview)
-        tree_scrollbar.pack(side="right", fill="y")
-        self.receipt_tree.configure(yscrollcommand=tree_scrollbar.set)
-        self.receipt_tree.pack(fill="both", expand=True)
 
     def setup_import_recipe_tab(self, import_recipe_from_url_cmd):
         """Setup the tab for importing recipes from URLs."""
