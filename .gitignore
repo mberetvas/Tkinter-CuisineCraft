@@ -1,0 +1,6 @@
+tkinter_gui/__pycache__/CuisineCraft_Modern.cpython-312.pyc
+.venv/
+._pycache_/
+tkinter_gui\.gitignore
+django_project\CuisineCraft_dj\CuisineCraft_dj\__pycache__
+*\__pycache__/
