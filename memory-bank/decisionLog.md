@@ -53,3 +53,12 @@ The `create_tables` method in `tkinter_gui/db.py` was refactored to consolidate 
 [2025-07-25 12:50:39] - Decided to add the `requests` library as a dependency for HTML fetching in the new Import Recipe tab. This enables robust and maintainable web scraping for supported recipe sites.
 [2025-07-25 12:51:14] - Decided to restrict recipe import to a whitelist of supported domains, starting with 15gram.be. This ensures only recipes with implemented parsers can be imported, improving reliability and user experience.
 [2025-07-25 12:51:24] - Decided to provide user feedback for recipe import via both an inline label and messageboxes, ensuring users are clearly informed of success or failure. This matches the UX pattern used elsewhere in the app.
+[2025-07-25 13:11:23] - Refactored CuisineCraft GUI into modular architecture (layout, events, ocr_utils, importers, helpers, constants).
+## Decision
+Split monolithic gui.py into multiple modules: layout.py, events.py, ocr_utils.py, importers.py, helpers.py, constants.py, and keep widgets/ for custom widgets.
+
+## Rationale 
+Improves code readability, maintainability, and scalability by enforcing clear separation of concerns and reducing class complexity.
+
+## Implementation Details
+Each module will encapsulate a specific responsibility. The main GUI class will delegate to these modules, minimizing dependencies and coupling.

@@ -36,3 +36,4 @@ This file provides a high-level overview of the project and the expected product
 * Modular codebase: [`db.py`](tkinter_gui/db.py:1) for database, [`gui.py`](tkinter_gui/gui.py:1) for UI, [`models.py`](tkinter_gui/models.py:1) for data models, [`utils.py`](tkinter_gui/utils.py:1) for helpers, [`theme.py`](tkinter_gui/theme.py:1) for UI styling.
 * Follows MVC-like separation: GUI interacts with database via handler, models define data, utilities handle parsing/export.
 * Extensible with widgets and theming for modern UX.
+[2025-07-25 13:11:30] - Adopted modular GUI architecture: split gui.py into layout, events, ocr_utils, importers, helpers, constants, and widgets/. This enables clearer separation of concerns and easier future maintenance.

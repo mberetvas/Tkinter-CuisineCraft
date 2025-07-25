@@ -13,13 +13,10 @@ from pathlib import Path
 import pytesseract
 from PIL import Image
 import cv2
-import re
 import datetime
 from dotenv import load_dotenv
 import os
-import requests
-from bs4 import BeautifulSoup
-from urllib.parse import urlparse
+# Removed requests, BeautifulSoup, urlparse as they are now in importers.py
 
 load_dotenv() # Load environment variables from .env file
 
@@ -30,6 +27,11 @@ from theme import ModernTheme, ToolTip, StatusBar
 from widgets.modern_entry import ModernEntry
 from widgets.ingredient_entry import ModernIngredientEntry
 from utils import parse_cooking_time, export_to_text, export_to_csv
+from layout import GUILayout # New import
+from events import GUIEventHandler # New import
+from ocr_utils import perform_ocr, parse_receipt # New import
+from helpers import find_ingredient_price # New import
+from constants import DAYS_OF_WEEK # New import
 
 logger = logging.getLogger('CuisineCraft')
 
@@ -526,52 +528,16 @@ class CuisineCraftModernGUI:
 
     def import_recipe_from_url(self):
         """Fetch a recipe from a supported URL, parse, and add to the database."""
-        url = self.url_entry.get().strip()
-        self.import_feedback_label.config(text="")
-        self.status_bar.set_status("Importing recipe...", show_progress=True)
-        try:
-            # Validate URL
-            if not url:
-                self.import_feedback_label.config(text="Please enter a recipe URL.")
-                self.status_bar.set_status("No URL entered")
-                return
-            parsed_url = urlparse(url)
-            domain = parsed_url.netloc.replace("www.", "")
-            if domain not in SUPPORTED_DOMAINS:
-                self.import_feedback_label.config(text=f"Unsupported domain: {domain}")
-                self.status_bar.set_status("Unsupported domain")
-                return
-
-            # Fetch HTML
-            response = requests.get(url, timeout=10)
-            if response.status_code != 200:
-                self.import_feedback_label.config(text=f"Failed to fetch page: {response.status_code}")
-                self.status_bar.set_status("Failed to fetch page")
-                return
-
-            # Parse recipe
-            parser_func = globals()[SUPPORTED_DOMAINS[domain]]
-            recipe = parser_func(response.text, url)
-            if not recipe:
-                self.import_feedback_label.config(text="Failed to parse recipe from page.")
-                self.status_bar.set_status("Parse error")
-                return
-
-            # Insert into database
-            with DatabaseHandler() as db:
-                db.insert_recipe(recipe)
-
-            self.import_feedback_label.config(text="Recipe imported successfully!")
-            self.status_bar.set_status("Recipe imported successfully!")
-            messagebox.showinfo("Success", "Recipe imported and added to database.")
-            self.refresh_recipe_list()
-            self.populate_recipe_combo()
-            self.url_entry.clear()
-        except Exception as e:
-            self.import_feedback_label.config(text=f"Error: {str(e)}")
-            self.status_bar.set_status(f"Error importing recipe: {str(e)}")
-        finally:
-            self.status_bar.set_status("Ready")
+        from importers import import_recipe_from_url as importer_func
+        importer_func(
+            self.url_entry.get(),
+            self.status_bar,
+            self.import_feedback_label,
+            self.db,
+            self.refresh_recipe_list,
+            self.populate_recipe_combo,
+            self.url_entry.clear
+        )
 
     def upload_receipt(self):
         """Handle receipt image upload and OCR processing"""
@@ -587,12 +553,12 @@ class CuisineCraftModernGUI:
         self.status_bar.set_status("Processing receipt...", show_progress=True)
         logger.info(f"Starting OCR processing for receipt: {file_path}")
         try:
-            extracted_text = self.perform_ocr(file_path)
+            extracted_text = perform_ocr(file_path)
             
             # Show the extracted text in a message box
             messagebox.showinfo("Extracted Text", extracted_text)
             
-            parsed_items, shop, price_date = self.parse_receipt(extracted_text)
+            parsed_items, shop, price_date = parse_receipt(extracted_text)
 
             # Store shop and date for saving
             self.current_receipt_shop = shop
@@ -619,78 +585,6 @@ class CuisineCraftModernGUI:
             self.processing_label.config(text="")
             self.status_bar.set_status("Ready")
 
-    def perform_ocr(self, file_path: str) -> str:
-        """Perform OCR on the given image file"""
-        logger.debug(f"Performing OCR on {file_path}")
-        # Preprocess the image for better OCR results
-        image = cv2.imread(file_path)
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        # Apply thresholding
-        _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
-        
-        # Use pytesseract to extract text
-        custom_config = r'--oem 3 --psm 6'
-        text = pytesseract.image_to_string(thresh, config=custom_config)
-        logger.debug(f"Extracted text from OCR: \n{text[:200]}...")
-        return text
-
-    def parse_receipt(self, text: str) -> (List[ReceiptItem], str, str):
-        """Parse the raw OCR text to extract receipt items, shop, and date."""
-        logger.debug("Parsing OCR text.")
-        items = []
-        lines = text.split('\n')
-        
-        # Try to find shop name (look for common supermarket names)
-        shop_name = "Unknown Shop"
-        known_shops = ['lidl', 'aldi', 'colruyt', 'delhaize', 'carrefour']
-        for line in lines:
-            for shop in known_shops:
-                if shop in line.lower():
-                    shop_name = shop.capitalize()
-                    break
-            if shop_name != "Unknown Shop":
-                break
-
-        # Try to find date
-        date_str = datetime.date.today().strftime('%Y-%m-%d')
-        date_regex = re.compile(r'(\d{2}[-/]\d{2}[-/]\d{4})')
-        for line in lines:
-            match = date_regex.search(line)
-            if match:
-                try:
-                    # Normalize date format
-                    date_obj = datetime.datetime.strptime(match.group(1).replace('-', '/'), '%d/%m/%Y')
-                    date_str = date_obj.strftime('%Y-%m-%d')
-                    break
-                except ValueError:
-                    pass # Ignore invalid date formats
-
-        # Regex to find lines that look like items (e.g., "item name 1.23")
-        # This regex is a bit more flexible, looking for a price at the end of the line
-        item_regex = re.compile(r'^(.*?)\s+([\d,]+\.\d{2})\s*$')
-
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-
-            match = item_regex.search(line)
-            if match:
-                item_name = match.group(1).strip()
-                price_str = match.group(2).replace(',', '')
-                price = float(price_str)
-                
-                # Basic cleaning of item name
-                item_name = re.sub(r'^\d+\s*', '', item_name) # remove leading numbers
-
-                items.append(ReceiptItem(
-                    item_name=item_name,
-                    price=price,
-                    shop=shop_name,
-                    price_date=date_str
-                ))
-        logger.info(f"Parsed {len(items)} items from receipt text.")
-        return items, shop_name, date_str
 
     def save_receipt_items(self):
         """Save the items from the receipt tree to the database"""
@@ -1652,169 +1546,4 @@ Features:
         self.populate_manual_menu_combos()
         self.load_manual_week_menu() # Load any previously saved menu on startup
 
-# --- Recipe Import Helper Functions ---
-
-SUPPORTED_DOMAINS = {
-    "15gram.be": "parse_15gram_recipe"
-}
-
-def parse_15gram_recipe(html_content: str, url: str) -> Optional[Recipe]:
-    """Parses recipe data from 15gram.be HTML content."""
-    soup = BeautifulSoup(html_content, 'lxml')
-
-    # Extract Title
-    title_tag = soup.find('h1')
-    name = title_tag.get_text(strip=True) if title_tag else "Unknown Recipe"
-
-    # Extract Persons and Cooking Time
-    # This information is usually right after the title, in a p tag or similar
-    # We'll look for text containing "MIN" and "personen"
-    persons = 0
-    cooking_time = 0
-    info_text = soup.find(text=re.compile(r'\d+\s*MIN|\d+\s*personen'))
-    if info_text:
-        time_match = re.search(r'(\d+)\s*MIN', info_text)
-        if time_match:
-            cooking_time = int(time_match.group(1))
-        persons_match = re.search(r'(\d+)\s*personen', info_text)
-        if persons_match:
-            persons = int(persons_match.group(1))
-
-    # Extract Cuisine Origin (default to "Belgian" for 15gram.be)
-    cuisine_origin = "Belgian"
-
-    # Extract File Location (will be empty for imported recipes)
-    file_location = ""
-
-    # Extract Health Grade (default to 0 for imported recipes)
-    health_grade = 0
-
-    # For ingredients and instructions, we need to find specific sections.
-    # 15gram uses h3 for "Ingrediënten" and "BEREIDING"
-    ingredients_list = []
-    instructions_text = ""
-
-    ingredients_heading = soup.find('h3', string='Ingrediënten')
-    if ingredients_heading:
-        ul = ingredients_heading.find_next('ul')
-        if ul:
-            for li in ul.find_all('li'):
-                ingredients_list.append(li.get_text(strip=True))
-
-    instructions_heading = soup.find('h3', string='BEREIDING')
-    if instructions_heading:
-        # Instructions are usually a numbered list or just paragraphs following the heading
-        next_sibling = instructions_heading.find_next_sibling()
-        while next_sibling and next_sibling.name in ['ol', 'p']:
-            if next_sibling.name == 'ol':
-                for li in next_sibling.find_all('li'):
-                    instructions_text += li.get_text(strip=True) + "\n"
-            elif next_sibling.name == 'p':
-                instructions_text += next_sibling.get_text(strip=True) + "\n"
-            next_sibling = next_sibling.find_next_sibling()
-
-    # Combine ingredients and instructions into a single string for file_location (or a new field if added)
-    # For now, we'll put them into a combined string and assign to file_location as a placeholder
-    # In a real app, you might save these to a separate file or a dedicated DB field.
-    combined_content = f"Ingredients:\n{'- ' + '\\n- '.join(ingredients_list)}\n\nInstructions:\n{instructions_text.strip()}"
-    
-    # Create a temporary file to store the recipe content
-    # This is a placeholder. In a real app, you'd save this to a proper location.
-    temp_file_path = f"temp_recipe_{name.replace(' ', '_')}.txt"
-    with open(temp_file_path, "w", encoding="utf-8") as f:
-        f.write(combined_content)
-    file_location = temp_file_path
-
-    return Recipe(
-        name=name,
-        persons=persons,
-        cooking_time=cooking_time,
-        cuisine_origin=cuisine_origin,
-        file_location=file_location,
-        url=url,
-        health_grade=health_grade
-    )
-
-
-# --- Recipe Import Helper Functions ---
-
-SUPPORTED_DOMAINS = {
-    "15gram.be": "parse_15gram_recipe"
-}
-
-def parse_15gram_recipe(html_content: str, url: str) -> Optional[Recipe]:
-    """Parses recipe data from 15gram.be HTML content."""
-    soup = BeautifulSoup(html_content, 'lxml')
-
-    # Extract Title
-    title_tag = soup.find('h1')
-    name = title_tag.get_text(strip=True) if title_tag else "Unknown Recipe"
-
-    # Extract Persons and Cooking Time
-    # This information is usually right after the title, in a p tag or similar
-    # We'll look for text containing "MIN" and "personen"
-    persons = 0
-    cooking_time = 0
-    info_text = soup.find(text=re.compile(r'\d+\s*MIN|\d+\s*personen'))
-    if info_text:
-        time_match = re.search(r'(\d+)\s*MIN', info_text)
-        if time_match:
-            cooking_time = int(time_match.group(1))
-        persons_match = re.search(r'(\d+)\s*personen', info_text)
-        if persons_match:
-            persons = int(persons_match.group(1))
-
-    # Extract Cuisine Origin (default to "Belgian" for 15gram.be)
-    cuisine_origin = "Belgian"
-
-    # Extract File Location (will be empty for imported recipes)
-    file_location = ""
-
-    # Extract Health Grade (default to 0 for imported recipes)
-    health_grade = 0
-
-    # For ingredients and instructions, we need to find specific sections.
-    # 15gram uses h3 for "Ingrediënten" and "BEREIDING"
-    ingredients_list = []
-    instructions_text = ""
-
-    ingredients_heading = soup.find('h3', string='Ingrediënten')
-    if ingredients_heading:
-        ul = ingredients_heading.find_next('ul')
-        if ul:
-            for li in ul.find_all('li'):
-                ingredients_list.append(li.get_text(strip=True))
-
-    instructions_heading = soup.find('h3', string='BEREIDING')
-    if instructions_heading:
-        # Instructions are usually a numbered list or just paragraphs following the heading
-        next_sibling = instructions_heading.find_next_sibling()
-        while next_sibling and next_sibling.name in ['ol', 'p']:
-            if next_sibling.name == 'ol':
-                for li in next_sibling.find_all('li'):
-                    instructions_text += li.get_text(strip=True) + "\n"
-            elif next_sibling.name == 'p':
-                instructions_text += next_sibling.get_text(strip=True) + "\n"
-            next_sibling = next_sibling.find_next_sibling()
-
-    # Combine ingredients and instructions into a single string for file_location (or a new field if added)
-    # For now, we'll put them into a combined string and assign to file_location as a placeholder
-    # In a real app, you might save these to a separate file or a dedicated DB field.
-    combined_content = f"Ingredients:\n{'- ' + '\\n- '.join(ingredients_list)}\n\nInstructions:\n{instructions_text.strip()}"
-    
-    # Create a temporary file to store the recipe content
-    # This is a placeholder. In a real app, you'd save this to a proper location.
-    temp_file_path = f"temp_recipe_{name.replace(' ', '_')}.txt"
-    with open(temp_file_path, "w", encoding="utf-8") as f:
-        f.write(combined_content)
-    file_location = temp_file_path
-
-    return Recipe(
-        name=name,
-        persons=persons,
-        cooking_time=cooking_time,
-        cuisine_origin=cuisine_origin,
-        file_location=file_location,
-        url=url,
-        health_grade=health_grade
-    )
+# (Recipe import helper functions moved to importers.py)
