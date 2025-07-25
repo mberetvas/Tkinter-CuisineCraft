@@ -4,14 +4,11 @@ Handles the creation and arrangement of Tkinter widgets and frames.
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox, filedialog
-import os
-import pytesseract
+from tkinter import ttk
 import logging
 
-from theme import ModernTheme, ToolTip, StatusBar
+from theme import ModernTheme, ToolTip
 from widgets.modern_entry import ModernEntry
-from widgets.ingredient_entry import ModernIngredientEntry
 from constants import DAYS_OF_WEEK
 
 logger = logging.getLogger('CuisineCraft')

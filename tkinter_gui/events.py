@@ -6,21 +6,18 @@ Contains methods that respond to user interactions and update the GUI/database.
 import tkinter as tk
 from tkinter import messagebox, filedialog
 import logging
-import pandas as pd
-import datetime
 import os
 
-from db import DatabaseHandler
-from models import Recipe, Ingredient, ReceiptItem, WeekMenuEntry
+from models import Recipe, WeekMenuEntry
 from utils import parse_cooking_time, export_to_text, export_to_csv
-from ocr_utils import perform_ocr, parse_receipt, find_ingredient_price
+# OCR Tesseract utilities removed
 from importers import import_recipe_from_url
 from constants import DAYS_OF_WEEK
 
 logger = logging.getLogger('CuisineCraft')
 
 class GUIEventHandler:
-    def __init__(self, gui_instance, db_handler, status_bar_instance, recipe_entries_dict, ingredient_entries_list, recipe_combo_widget, search_entry_widget, recipe_listbox_widget, week_menu_listbox_widget, ingredients_tree_widget, receipt_tree_widget, manual_menu_search_entry_widget, manual_menu_recipe_listbox_widget, manual_menu_ingredients_tree_widget, url_entry_widget, import_feedback_label_widget, processing_label_widget, notebook_widget, tab_add_recipe_widget, week_menu_vars_dict, week_menu_recipe_ids_dict):
+    def __init__(self, gui_instance, db_handler, status_bar_instance, recipe_entries_dict, ingredient_entries_list, recipe_combo_widget, search_entry_widget, recipe_listbox_widget, week_menu_listbox_widget, ingredients_tree_widget, url_entry_widget, import_feedback_label_widget, notebook_widget, tab_add_recipe_widget, week_menu_vars_dict, week_menu_recipe_ids_dict):
         self.gui = gui_instance
         self.db = db_handler
         self.status_bar = status_bar_instance
@@ -31,20 +28,13 @@ class GUIEventHandler:
         self.recipe_listbox = recipe_listbox_widget
         self.week_menu_listbox = week_menu_listbox_widget
         self.ingredients_tree = ingredients_tree_widget
-        self.receipt_tree = receipt_tree_widget
-        self.manual_menu_search_entry = manual_menu_search_entry_widget
-        self.manual_menu_recipe_listbox = manual_menu_recipe_listbox_widget
-        self.manual_menu_ingredients_tree = manual_menu_ingredients_tree_widget
         self.url_entry = url_entry_widget
         self.import_feedback_label = import_feedback_label_widget
-        self.processing_label = processing_label_widget
         self.notebook = notebook_widget
         self.tab_add_recipe = tab_add_recipe_widget
         self.week_menu_vars = week_menu_vars_dict
         self.week_menu_recipe_ids = week_menu_recipe_ids_dict
 
-        self.current_receipt_shop = 'Unknown Shop'
-        self.current_receipt_date = datetime.date.today().strftime('%Y-%m-%d')
         self.all_recipes_for_manual_menu = {} # To be populated by GUI
 
     def show_shortcuts(self):
@@ -456,6 +446,8 @@ Features:
                 for item in self.ingredients_tree.get_children():
                     self.ingredients_tree.delete(item)
                 
+                # Use helpers.py for ingredient price lookup now
+                from helpers import find_ingredient_price
                 for i, (ingredient, amount, unit) in enumerate(results):
                     price, shop = find_ingredient_price(ingredient, receipt_items_df)
                     self.ingredients_tree.insert(
@@ -546,81 +538,9 @@ Features:
         finally:
             self.status_bar.set_status("Ready")
 
-    def upload_receipt(self):
-        """Handle receipt image upload and OCR processing"""
-        file_path = filedialog.askopenfilename(
-            filetypes=[("Image Files", "*.png *.jpg *.jpeg *.bmp *.tiff")]
-        )
-        if not file_path:
-            logger.info("Receipt upload cancelled by user.")
-            return
+    # upload_receipt method removed (OCR Tesseract functionality)
 
-        self.processing_label.config(text="Processing...")
-        self.gui.root.update_idletasks() # Update GUI from main instance
-        self.status_bar.set_status("Processing receipt...", show_progress=True)
-        logger.info(f"Starting OCR processing for receipt: {file_path}")
-        try:
-            extracted_text = perform_ocr(file_path)
-            
-            messagebox.showinfo("Extracted Text", extracted_text)
-            
-            parsed_items, shop, price_date = parse_receipt(extracted_text)
-
-            self.current_receipt_shop = shop
-            self.current_receipt_date = price_date
-
-            for item in self.receipt_tree.get_children():
-                self.receipt_tree.delete(item)
-
-            for item in parsed_items:
-                self.receipt_tree.insert('', 'end', values=(
-                    item.item_name, item.price, item.quantity, item.unit
-                ))
-            
-            self.status_bar.set_status(f"Processed {len(parsed_items)} items from receipt.")
-            logger.info(f"Successfully processed {len(parsed_items)} items from receipt.")
-
-        except Exception as e:
-            logger.error(f"Failed to process receipt: {str(e)}")
-            self.status_bar.set_status(f"Error processing receipt: {str(e)}")
-            messagebox.showerror("Receipt Processing Error", f"Failed to process receipt: {str(e)}")
-        finally:
-            self.processing_label.config(text="")
-            self.status_bar.set_status("Ready")
-
-    def save_receipt_items(self):
-        """Save the items from the receipt tree to the database"""
-        items_to_save = []
-        shop = getattr(self, 'current_receipt_shop', 'Unknown Shop')
-        price_date = getattr(self, 'current_receipt_date', datetime.date.today().strftime('%Y-%m-%d'))
-
-        for child in self.receipt_tree.get_children():
-            values = self.receipt_tree.item(child)['values']
-            item = ReceiptItem(
-                item_name=values[0],
-                price=float(values[1]),
-                quantity=float(values[2]) if values[2] else 1.0,
-                unit=values[3],
-                shop=shop,
-                price_date=price_date
-            )
-            items_to_save.append(item)
-
-        if not items_to_save:
-            messagebox.showwarning("No Items", "No items to save.")
-            return
-
-        try:
-            with self.db() as db:
-                db.insert_receipt_items(items_to_save)
-            
-            messagebox.showinfo("Success", f"Successfully saved {len(items_to_save)} items.")
-            for item in self.receipt_tree.get_children():
-                self.receipt_tree.delete(item)
-
-        except Exception as e:
-            logger.error(f"Failed to save receipt items: {str(e)}")
-            messagebox.showerror("Database Error", f"Failed to save receipt items: {str(e)}")
+    # save_receipt_items method removed (OCR Tesseract functionality)
 
     def import_recipe_from_url_event(self):
         """Wrapper for import_recipe_from_url to pass GUI elements."""
