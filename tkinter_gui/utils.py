@@ -7,8 +7,8 @@ import re
 import time
 import csv
 import logging
-from pathlib import Path
-from typing import List, Tuple
+from typing import List
+from tkinter_gui.config import CSV_DELIMITER
 
 logger = logging.getLogger('CuisineCraft')
 
@@ -89,7 +89,7 @@ def export_to_csv(file_path: str, meals: List[dict], grouped_ingredients: dict) 
     """Export menu to CSV format with URLs and grouped ingredients"""
     logger.info(f"Exporting week menu to CSV file: {file_path}")
     with open(file_path, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
+        writer = csv.writer(f, delimiter=CSV_DELIMITER)
         
         # Write header
         writer.writerow(['CuisineCraft Week Menu Export'])

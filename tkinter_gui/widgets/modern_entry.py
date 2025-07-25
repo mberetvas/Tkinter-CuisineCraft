@@ -5,7 +5,7 @@ Custom styled entry with validation and placeholder support
 
 import tkinter as tk
 from tkinter import ttk
-from theme import ModernTheme
+from tkinter_gui.theme import ModernTheme
 
 class ModernEntry(ttk.Frame):
     """Modern styled entry widget with label and validation"""

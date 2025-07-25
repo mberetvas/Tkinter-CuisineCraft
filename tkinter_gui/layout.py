@@ -5,13 +5,10 @@ Handles the creation and arrangement of Tkinter widgets and frames.
 
 import tkinter as tk
 from tkinter import ttk
-import logging
 
 from theme import ModernTheme, ToolTip
 from widgets.modern_entry import ModernEntry
 from constants import DAYS_OF_WEEK
-
-logger = logging.getLogger('CuisineCraft')
 
 class GUILayout:
     def __init__(self, root, notebook, main_frame, status_bar_instance, ingredient_entries_list, manual_week_menu_recipe_combos, recipe_entries_dict, recipe_combo_widget, week_menu_vars_dict, week_menu_recipe_ids_dict):

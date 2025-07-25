@@ -5,16 +5,15 @@ Contains methods that respond to user interactions and update the GUI/database.
 
 import tkinter as tk
 from tkinter import messagebox, filedialog
-import logging
+from logger import logger
 import os
 
 from models import Recipe, WeekMenuEntry
 from utils import parse_cooking_time, export_to_text, export_to_csv
 # OCR Tesseract utilities removed
-from importers import import_recipe_from_url
+from .importers import import_recipe_from_url
 from constants import DAYS_OF_WEEK
-
-logger = logging.getLogger('CuisineCraft')
+from .db import DatabaseHandler
 
 class GUIEventHandler:
     def __init__(self, gui_instance, db_handler, status_bar_instance, recipe_entries_dict, ingredient_entries_list, recipe_combo_widget, search_entry_widget, recipe_listbox_widget, week_menu_listbox_widget, ingredients_tree_widget, url_entry_widget, import_feedback_label_widget, notebook_widget, tab_add_recipe_widget, week_menu_vars_dict, week_menu_recipe_ids_dict):
@@ -548,7 +547,7 @@ Features:
             self.url_entry.get(),
             self.status_bar,
             self.import_feedback_label,
-            self.db,
+            DatabaseHandler,  # Pass the class, not the instance
             self.gui.refresh_recipe_list,
             self.gui.populate_recipe_combo,
             self.url_entry.clear

@@ -5,20 +5,18 @@ Manages SQLite database operations for recipes and ingredients
 
 import sqlite3
 import pandas as pd
-import logging
+from tkinter_gui.logger import logger  # Use the async logger
 import datetime
 from typing import List
-from models import Recipe, Ingredient, ReceiptItem, WeekMenuEntry
+from tkinter_gui.models import Recipe, Ingredient, ReceiptItem, WeekMenuEntry
 from dotenv import load_dotenv
-import os
+from tkinter_gui.config import DB_PATH
 
 load_dotenv() # Load environment variables from .env file
 
-logger = logging.getLogger('CuisineCraft')
-
 class DatabaseHandler:
     """Handles all database operations"""
-    DB_PATH = os.getenv("DB_PATH", "CuisineCraft.db") # Default to CuisineCraft.db if not found in .env
+    DB_PATH = DB_PATH  # Use centralized config
 
     def __init__(self):
         self.conn = None

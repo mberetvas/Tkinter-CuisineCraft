@@ -58,8 +58,12 @@ The CuisineCraft Recipe Management System provides the following functionality:
 - View the ingredients required for the selected meals in a tabular format.
 - Export the generated weekly menu and ingredient list to a text file.
 
+## Configuration
+
+All key settings for CuisineCraft (such as database file location, log file, export directory, CSV delimiter, and supported languages) are now centralized in `tkinter_gui/config.py`. Update this file to change project-wide configuration.
+
 Note: 
-Just a heads up, the application uses a database file called "CuisineCraft.db" to store all the recipe and ingredient data. Before you start using the application, it's recommended to delete this database since it will already have my recipes loaded. :)
+Just a heads up, the application uses a database file called "CuisineCraft.db" (see `config.py` for the current path) to store all the recipe and ingredient data. Before you start using the application, it's recommended to delete this database since it will already have my recipes loaded. :)
 
 ## "To-Do list"
 

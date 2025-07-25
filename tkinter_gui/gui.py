@@ -3,15 +3,15 @@ CuisineCraft Main GUI Module
 Refactored from CuisineCraft_Modern.py with modular structure
 """
 
-from models import Recipe, WeekMenuEntry
-from db import DatabaseHandler
-from theme import ModernTheme, ToolTip, StatusBar
-from widgets.modern_entry import ModernEntry
-from widgets.ingredient_entry import ModernIngredientEntry
-from utils import parse_cooking_time, export_to_text, export_to_csv
+from tkinter_gui.models import Recipe, WeekMenuEntry
+from tkinter_gui.db import DatabaseHandler
+from tkinter_gui.theme import ModernTheme, ToolTip, StatusBar
+from tkinter_gui.widgets.modern_entry import ModernEntry
+from tkinter_gui.widgets.ingredient_entry import ModernIngredientEntry
+from tkinter_gui.utils import parse_cooking_time, export_to_text, export_to_csv
 import tkinter as tk
 import pandas as pd
-import logging
+from tkinter_gui.logger import logger
 from tkinter import ttk, messagebox, filedialog
 from typing import List, Optional
 from pathlib import Path
@@ -19,9 +19,6 @@ from dotenv import load_dotenv
 # Removed requests, BeautifulSoup, urlparse as they are now in importers.py
 
 load_dotenv()  # Load environment variables from .env file
-
-
-logger = logging.getLogger("CuisineCraft")
 
 
 class CuisineCraftModernGUI:
@@ -564,7 +561,7 @@ class CuisineCraftModernGUI:
 
     def import_recipe_from_url(self):
         """Fetch a recipe from a supported URL, parse, and add to the database."""
-        from importers import import_recipe_from_url as importer_func
+        from tkinter_gui.importers import import_recipe_from_url as importer_func
 
         importer_func(
             self.url_entry.get(),

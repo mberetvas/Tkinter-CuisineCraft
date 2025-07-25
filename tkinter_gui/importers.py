@@ -9,8 +9,13 @@ from bs4 import BeautifulSoup
 from typing import Optional
 from urllib.parse import urlparse
 
-from models import Recipe
-from constants import SUPPORTED_DOMAINS
+from tkinter_gui.models import Recipe
+
+SUPPORTED_DOMAINS = {
+    "15gram.be": "parse_15gram_recipe"
+}
+
+DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 def parse_15gram_recipe(html_content: str, url: str) -> Optional[Recipe]:
     """Parses recipe data from 15gram.be HTML content."""

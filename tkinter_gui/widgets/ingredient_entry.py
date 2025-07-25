@@ -5,8 +5,8 @@ Specialized widget for ingredient input
 
 import tkinter as tk
 from tkinter import ttk
-from theme import ModernTheme
-from models import Ingredient
+from tkinter_gui.theme import ModernTheme
+from tkinter_gui.models import Ingredient
 
 class ModernIngredientEntry(ttk.Frame):
     """Modern ingredient entry with individual fields"""
