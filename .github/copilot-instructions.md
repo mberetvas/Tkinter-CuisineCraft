@@ -42,5 +42,8 @@
 - To add ingredients: Use the "Add ingredients to recipe" tab, enter comma-separated values, and submit.
 - To generate a weekly menu: Use the "weekmenu generator" tab.
 
----
-For more, see `project-description.md` and `tkinter_gui/README.md`.
+## Main guidelines
+- **Create Readable Code**: Follow PEP 8 for Python code style.
+- **Use Type Hints**: Include type hints for all functions and methods.
+- **Document Code**: Use docstrings for all classes and functions and add module-level docstrings.
+- **Create Maintainable Code**: Structure code for clarity, modularity, and ease of future updates or extensions.
