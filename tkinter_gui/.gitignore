@@ -208,3 +208,6 @@ __marimo__/
 
 # JUnit test results
 junit/
+
+# Ignore all files containing CuisineCraft.db in the name
+*CuisineCraft.db*
