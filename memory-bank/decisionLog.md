@@ -50,3 +50,6 @@ On "Save Menu", the current week menu assignments will be stored in this table. 
 [2025-07-25 12:36:25] - Resolved "no such table: WeekMenu" error.
 ## Resolution
 The `create_tables` method in `tkinter_gui/db.py` was refactored to consolidate all `CREATE TABLE IF NOT EXISTS` statements into a single `try` block. This ensures that all necessary tables, including `WeekMenu`, are reliably created upon database connection, preventing premature queries to non-existent tables.
+[2025-07-25 12:50:39] - Decided to add the `requests` library as a dependency for HTML fetching in the new Import Recipe tab. This enables robust and maintainable web scraping for supported recipe sites.
+[2025-07-25 12:51:14] - Decided to restrict recipe import to a whitelist of supported domains, starting with 15gram.be. This ensures only recipes with implemented parsers can be imported, improving reliability and user experience.
+[2025-07-25 12:51:24] - Decided to provide user feedback for recipe import via both an inline label and messageboxes, ensuring users are clearly informed of success or failure. This matches the UX pattern used elsewhere in the app.

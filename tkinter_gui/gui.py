@@ -17,6 +17,9 @@ import re
 import datetime
 from dotenv import load_dotenv
 import os
+import requests
+from bs4 import BeautifulSoup
+from urllib.parse import urlparse
 
 load_dotenv() # Load environment variables from .env file
 
@@ -92,6 +95,7 @@ class CuisineCraftModernGUI:
         self.setup_recipe_tab()
         self.setup_ingredients_tab()
         self.setup_receipts_tab()
+        self.setup_import_recipe_tab() # New tab for importing recipes
         
         # Load initial data
         self.refresh_recipe_list()
@@ -128,6 +132,7 @@ class CuisineCraftModernGUI:
         self.tab_add_recipe = ttk.Frame(self.notebook, style='Modern.TFrame')
         self.tab_ingredients = ttk.Frame(self.notebook, style='Modern.TFrame')
         self.tab_receipts = ttk.Frame(self.notebook, style='Modern.TFrame')
+        self.tab_import_recipe = ttk.Frame(self.notebook, style='Modern.TFrame') # New tab frame
         
         # Add tabs with modern styling
         self.notebook.add(self.tab_recipes, text='📋 Recipe List')
@@ -136,6 +141,7 @@ class CuisineCraftModernGUI:
         self.notebook.add(self.tab_add_recipe, text='➕ Add Recipe')
         self.notebook.add(self.tab_ingredients, text='🥕 Add Ingredients')
         self.notebook.add(self.tab_receipts, text='🧾 Receipts')
+        self.notebook.add(self.tab_import_recipe, text='🔗 Import Recipe') # New tab
 
     def setup_recipe_list_tab(self):
         """Modern recipe list with search and filters"""
@@ -484,6 +490,88 @@ class CuisineCraftModernGUI:
         tree_scrollbar.pack(side="right", fill="y")
         self.receipt_tree.configure(yscrollcommand=tree_scrollbar.set)
         self.receipt_tree.pack(fill="both", expand=True)
+
+    def setup_import_recipe_tab(self):
+        """Setup the tab for importing recipes from URLs."""
+        self.tab_import_recipe.configure(padding=16)
+
+        # Header
+        header_frame = ttk.Frame(self.tab_import_recipe, style='Modern.TFrame')
+        header_frame.pack(fill='x', pady=(0, 16))
+        
+        form_header = ttk.Label(header_frame, text="Import Recipe from URL",
+                              style='Heading.TLabel')
+        form_header.pack(anchor='w')
+
+        # URL input
+        url_frame = ttk.Frame(self.tab_import_recipe, style='Card.TFrame')
+        url_frame.pack(fill='x', pady=(0, 12))
+        url_frame.configure(padding=12)
+        
+        self.url_entry = ModernEntry(url_frame, label_text="Recipe URL",
+                                     placeholder="Enter recipe URL (e.g., https://15gram.be/...)")
+        self.url_entry.pack(fill='x')
+
+        # Buttons and feedback
+        button_feedback_frame = ttk.Frame(self.tab_import_recipe, style='Modern.TFrame')
+        button_feedback_frame.pack(fill='x', pady=(16, 0))
+
+        import_btn = ttk.Button(button_feedback_frame, text="🔗 Fetch & Add Recipe",
+                                style='Modern.TButton', command=self.import_recipe_from_url)
+        import_btn.pack(side='left', padx=(0, 8))
+
+        self.import_feedback_label = ttk.Label(button_feedback_frame, text="",
+                                               style='Card.TLabel', foreground=ModernTheme.COLORS['info'])
+        self.import_feedback_label.pack(side='left', padx=(8, 0))
+
+    def import_recipe_from_url(self):
+        """Fetch a recipe from a supported URL, parse, and add to the database."""
+        url = self.url_entry.get().strip()
+        self.import_feedback_label.config(text="")
+        self.status_bar.set_status("Importing recipe...", show_progress=True)
+        try:
+            # Validate URL
+            if not url:
+                self.import_feedback_label.config(text="Please enter a recipe URL.")
+                self.status_bar.set_status("No URL entered")
+                return
+            parsed_url = urlparse(url)
+            domain = parsed_url.netloc.replace("www.", "")
+            if domain not in SUPPORTED_DOMAINS:
+                self.import_feedback_label.config(text=f"Unsupported domain: {domain}")
+                self.status_bar.set_status("Unsupported domain")
+                return
+
+            # Fetch HTML
+            response = requests.get(url, timeout=10)
+            if response.status_code != 200:
+                self.import_feedback_label.config(text=f"Failed to fetch page: {response.status_code}")
+                self.status_bar.set_status("Failed to fetch page")
+                return
+
+            # Parse recipe
+            parser_func = globals()[SUPPORTED_DOMAINS[domain]]
+            recipe = parser_func(response.text, url)
+            if not recipe:
+                self.import_feedback_label.config(text="Failed to parse recipe from page.")
+                self.status_bar.set_status("Parse error")
+                return
+
+            # Insert into database
+            with DatabaseHandler() as db:
+                db.insert_recipe(recipe)
+
+            self.import_feedback_label.config(text="Recipe imported successfully!")
+            self.status_bar.set_status("Recipe imported successfully!")
+            messagebox.showinfo("Success", "Recipe imported and added to database.")
+            self.refresh_recipe_list()
+            self.populate_recipe_combo()
+            self.url_entry.clear()
+        except Exception as e:
+            self.import_feedback_label.config(text=f"Error: {str(e)}")
+            self.status_bar.set_status(f"Error importing recipe: {str(e)}")
+        finally:
+            self.status_bar.set_status("Ready")
 
     def upload_receipt(self):
         """Handle receipt image upload and OCR processing"""
@@ -1417,16 +1505,20 @@ Features:
         left_frame.configure(padding=12)
         main_paned_window.add(left_frame, weight=1)
 
+
         search_label = ttk.Label(left_frame, text="Search Recipes",
                                style='Card.TLabel', font=ModernTheme.FONTS['subheading'])
         search_label.pack(anchor='w', pady=(0, 8))
+
 
         self.manual_menu_search_entry = ModernEntry(left_frame, placeholder="Search by name, cuisine, or ingredient...")
         self.manual_menu_search_entry.pack(fill='x')
         self.manual_menu_search_entry.entry.bind('<KeyRelease>', self.on_manual_menu_search_change)
 
+
         listbox_frame = ttk.Frame(left_frame, style='Card.TFrame')
         listbox_frame.pack(fill='both', expand=True, pady=(12, 0))
+
 
         self.manual_menu_recipe_listbox = tk.Listbox(listbox_frame,
                                                    font=ModernTheme.FONTS['body'],
@@ -1438,6 +1530,7 @@ Features:
                                                    highlightthickness=0,
                                                    activestyle='none')
 
+
         scrollbar = ttk.Scrollbar(listbox_frame, orient='vertical')
         scrollbar.pack(side='right', fill='y')
         self.manual_menu_recipe_listbox.config(yscrollcommand=scrollbar.set)
@@ -1445,27 +1538,33 @@ Features:
         self.manual_menu_recipe_listbox.pack(fill='both', expand=True)
         self.manual_menu_recipe_listbox.bind('<<ListboxSelect>>', self.on_manual_menu_recipe_select)
 
+
         # Right Frame: Day-by-day recipe selection and shopping list
         right_frame = ttk.Frame(main_paned_window, style='Card.TFrame')
         right_frame.configure(padding=12)
         main_paned_window.add(right_frame, weight=2)
+
 
         # Week menu selection
         menu_selection_frame = ttk.Frame(right_frame, style='Card.TFrame')
         menu_selection_frame.pack(fill='x', pady=(0, 16))
         menu_selection_frame.configure(padding=12)
 
+
         menu_select_label = ttk.Label(menu_selection_frame, text="Assign Recipes to Days",
                                     style='Card.TLabel', font=ModernTheme.FONTS['subheading'])
         menu_select_label.pack(anchor='w', pady=(0, 8))
+
 
         self.days_of_week = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
         self.week_menu_vars = {day: tk.StringVar(value="Select a recipe") for day in self.days_of_week}
         self.week_menu_recipe_ids = {day: None for day in self.days_of_week} # Store recipe IDs
 
+
         for day in self.days_of_week:
             day_frame = ttk.Frame(menu_selection_frame, style='Modern.TFrame')
             day_frame.pack(fill='x', pady=2)
+
 
             ttk.Label(day_frame, text=f"{day}:", style='Modern.TLabel', width=10).pack(side='left')
             
@@ -1474,47 +1573,58 @@ Features:
             combo.bind("<<ComboboxSelected>>", lambda event, d=day: self.on_manual_menu_recipe_assign(d))
             self.manual_week_menu_recipe_combos[day] = combo
 
+
             clear_day_btn = ttk.Button(day_frame, text="Clear", style='Secondary.TButton',
                                        command=lambda d=day: self.clear_day_recipe(d))
             clear_day_btn.pack(side='right')
+
 
         # Action buttons for manual menu
         button_frame = ttk.Frame(right_frame, style='Card.TFrame')
         button_frame.pack(fill='x', pady=(0, 16))
         button_frame.configure(padding=12)
 
+
         save_menu_btn = ttk.Button(button_frame, text="💾 Save Menu",
                                  style='Modern.TButton', command=self.save_manual_week_menu)
         save_menu_btn.pack(side='left', padx=(0, 8))
+
 
         load_menu_btn = ttk.Button(button_frame, text="🔄 Load Latest",
                                  style='Secondary.TButton', command=self.load_manual_week_menu)
         load_menu_btn.pack(side='left', padx=(0, 8))
 
+
         clear_all_btn = ttk.Button(button_frame, text="🗑️ Clear All",
                                  style='Danger.TButton', command=self.clear_all_manual_menu_recipes)
         clear_all_btn.pack(side='left', padx=(0, 8))
 
+
         export_manual_btn = ttk.Button(button_frame, text="📤 Export Menu",
                                      style='Secondary.TButton', command=self.export_manual_week_menu)
         export_manual_btn.pack(side='left')
+
 
         # Shopping list section (reusing ingredients_tree from auto menu tab)
         ingredients_frame = ttk.Frame(right_frame, style='Card.TFrame')
         ingredients_frame.pack(fill='both', expand=True)
         ingredients_frame.configure(padding=12)
 
+
         ing_label = ttk.Label(ingredients_frame, text="Shopping List for Manual Menu",
                             style='Card.TLabel', font=ModernTheme.FONTS['subheading'])
         ing_label.pack(anchor='w', pady=(0, 8))
 
+
         tree_frame = ttk.Frame(ingredients_frame, style='Card.TFrame')
         tree_frame.pack(fill='both', expand=True)
+
 
         self.manual_menu_ingredients_tree = ttk.Treeview(tree_frame,
                                                        columns=('ingredients', 'amount', 'unit', 'price', 'shop'),
                                                        show='headings',
                                                        style='Modern.Treeview')
+
 
         self.manual_menu_ingredients_tree.heading('ingredients', text='Ingredient')
         self.manual_menu_ingredients_tree.heading('amount', text='Amount')
@@ -1522,11 +1632,13 @@ Features:
         self.manual_menu_ingredients_tree.heading('price', text='Est. Price')
         self.manual_menu_ingredients_tree.heading('shop', text='Shop')
 
+
         self.manual_menu_ingredients_tree.column('ingredients', width=200)
         self.manual_menu_ingredients_tree.column('amount', width=80)
         self.manual_menu_ingredients_tree.column('unit', width=80)
         self.manual_menu_ingredients_tree.column('price', width=80)
         self.manual_menu_ingredients_tree.column('shop', width=100)
+
 
         tree_scrollbar = ttk.Scrollbar(tree_frame, orient="vertical",
                                      command=self.manual_menu_ingredients_tree.yview)
@@ -1534,7 +1646,175 @@ Features:
         self.manual_menu_ingredients_tree.configure(yscrollcommand=tree_scrollbar.set)
         self.manual_menu_ingredients_tree.pack(fill="both", expand=True)
 
+
         # Initial population of recipe list and comboboxes
         self.refresh_manual_menu_recipe_list()
         self.populate_manual_menu_combos()
         self.load_manual_week_menu() # Load any previously saved menu on startup
+
+# --- Recipe Import Helper Functions ---
+
+SUPPORTED_DOMAINS = {
+    "15gram.be": "parse_15gram_recipe"
+}
+
+def parse_15gram_recipe(html_content: str, url: str) -> Optional[Recipe]:
+    """Parses recipe data from 15gram.be HTML content."""
+    soup = BeautifulSoup(html_content, 'lxml')
+
+    # Extract Title
+    title_tag = soup.find('h1')
+    name = title_tag.get_text(strip=True) if title_tag else "Unknown Recipe"
+
+    # Extract Persons and Cooking Time
+    # This information is usually right after the title, in a p tag or similar
+    # We'll look for text containing "MIN" and "personen"
+    persons = 0
+    cooking_time = 0
+    info_text = soup.find(text=re.compile(r'\d+\s*MIN|\d+\s*personen'))
+    if info_text:
+        time_match = re.search(r'(\d+)\s*MIN', info_text)
+        if time_match:
+            cooking_time = int(time_match.group(1))
+        persons_match = re.search(r'(\d+)\s*personen', info_text)
+        if persons_match:
+            persons = int(persons_match.group(1))
+
+    # Extract Cuisine Origin (default to "Belgian" for 15gram.be)
+    cuisine_origin = "Belgian"
+
+    # Extract File Location (will be empty for imported recipes)
+    file_location = ""
+
+    # Extract Health Grade (default to 0 for imported recipes)
+    health_grade = 0
+
+    # For ingredients and instructions, we need to find specific sections.
+    # 15gram uses h3 for "Ingrediënten" and "BEREIDING"
+    ingredients_list = []
+    instructions_text = ""
+
+    ingredients_heading = soup.find('h3', string='Ingrediënten')
+    if ingredients_heading:
+        ul = ingredients_heading.find_next('ul')
+        if ul:
+            for li in ul.find_all('li'):
+                ingredients_list.append(li.get_text(strip=True))
+
+    instructions_heading = soup.find('h3', string='BEREIDING')
+    if instructions_heading:
+        # Instructions are usually a numbered list or just paragraphs following the heading
+        next_sibling = instructions_heading.find_next_sibling()
+        while next_sibling and next_sibling.name in ['ol', 'p']:
+            if next_sibling.name == 'ol':
+                for li in next_sibling.find_all('li'):
+                    instructions_text += li.get_text(strip=True) + "\n"
+            elif next_sibling.name == 'p':
+                instructions_text += next_sibling.get_text(strip=True) + "\n"
+            next_sibling = next_sibling.find_next_sibling()
+
+    # Combine ingredients and instructions into a single string for file_location (or a new field if added)
+    # For now, we'll put them into a combined string and assign to file_location as a placeholder
+    # In a real app, you might save these to a separate file or a dedicated DB field.
+    combined_content = f"Ingredients:\n{'- ' + '\\n- '.join(ingredients_list)}\n\nInstructions:\n{instructions_text.strip()}"
+    
+    # Create a temporary file to store the recipe content
+    # This is a placeholder. In a real app, you'd save this to a proper location.
+    temp_file_path = f"temp_recipe_{name.replace(' ', '_')}.txt"
+    with open(temp_file_path, "w", encoding="utf-8") as f:
+        f.write(combined_content)
+    file_location = temp_file_path
+
+    return Recipe(
+        name=name,
+        persons=persons,
+        cooking_time=cooking_time,
+        cuisine_origin=cuisine_origin,
+        file_location=file_location,
+        url=url,
+        health_grade=health_grade
+    )
+
+
+# --- Recipe Import Helper Functions ---
+
+SUPPORTED_DOMAINS = {
+    "15gram.be": "parse_15gram_recipe"
+}
+
+def parse_15gram_recipe(html_content: str, url: str) -> Optional[Recipe]:
+    """Parses recipe data from 15gram.be HTML content."""
+    soup = BeautifulSoup(html_content, 'lxml')
+
+    # Extract Title
+    title_tag = soup.find('h1')
+    name = title_tag.get_text(strip=True) if title_tag else "Unknown Recipe"
+
+    # Extract Persons and Cooking Time
+    # This information is usually right after the title, in a p tag or similar
+    # We'll look for text containing "MIN" and "personen"
+    persons = 0
+    cooking_time = 0
+    info_text = soup.find(text=re.compile(r'\d+\s*MIN|\d+\s*personen'))
+    if info_text:
+        time_match = re.search(r'(\d+)\s*MIN', info_text)
+        if time_match:
+            cooking_time = int(time_match.group(1))
+        persons_match = re.search(r'(\d+)\s*personen', info_text)
+        if persons_match:
+            persons = int(persons_match.group(1))
+
+    # Extract Cuisine Origin (default to "Belgian" for 15gram.be)
+    cuisine_origin = "Belgian"
+
+    # Extract File Location (will be empty for imported recipes)
+    file_location = ""
+
+    # Extract Health Grade (default to 0 for imported recipes)
+    health_grade = 0
+
+    # For ingredients and instructions, we need to find specific sections.
+    # 15gram uses h3 for "Ingrediënten" and "BEREIDING"
+    ingredients_list = []
+    instructions_text = ""
+
+    ingredients_heading = soup.find('h3', string='Ingrediënten')
+    if ingredients_heading:
+        ul = ingredients_heading.find_next('ul')
+        if ul:
+            for li in ul.find_all('li'):
+                ingredients_list.append(li.get_text(strip=True))
+
+    instructions_heading = soup.find('h3', string='BEREIDING')
+    if instructions_heading:
+        # Instructions are usually a numbered list or just paragraphs following the heading
+        next_sibling = instructions_heading.find_next_sibling()
+        while next_sibling and next_sibling.name in ['ol', 'p']:
+            if next_sibling.name == 'ol':
+                for li in next_sibling.find_all('li'):
+                    instructions_text += li.get_text(strip=True) + "\n"
+            elif next_sibling.name == 'p':
+                instructions_text += next_sibling.get_text(strip=True) + "\n"
+            next_sibling = next_sibling.find_next_sibling()
+
+    # Combine ingredients and instructions into a single string for file_location (or a new field if added)
+    # For now, we'll put them into a combined string and assign to file_location as a placeholder
+    # In a real app, you might save these to a separate file or a dedicated DB field.
+    combined_content = f"Ingredients:\n{'- ' + '\\n- '.join(ingredients_list)}\n\nInstructions:\n{instructions_text.strip()}"
+    
+    # Create a temporary file to store the recipe content
+    # This is a placeholder. In a real app, you'd save this to a proper location.
+    temp_file_path = f"temp_recipe_{name.replace(' ', '_')}.txt"
+    with open(temp_file_path, "w", encoding="utf-8") as f:
+        f.write(combined_content)
+    file_location = temp_file_path
+
+    return Recipe(
+        name=name,
+        persons=persons,
+        cooking_time=cooking_time,
+        cuisine_origin=cuisine_origin,
+        file_location=file_location,
+        url=url,
+        health_grade=health_grade
+    )

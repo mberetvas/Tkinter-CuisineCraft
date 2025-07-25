@@ -3,5 +3,8 @@ pytesseract>=0.3.10
 Pillow>=9.0.0
 opencv-python>=4.5.0
 python-dotenv>=1.0.0
+requests>=2.31.0
+beautifulsoup4>=4.12.2
+lxml>=4.9.3
 # tkinter comes with Python standard library
 # sqlite3 comes with Python standard library
